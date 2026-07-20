@@ -27,14 +27,58 @@ Open `index.html` in a browser (double-click it, or host it anywhere).
    Folders are read recursively and their structure is preserved.
 2. **Output** — either:
    * **Write to a folder** (Chrome / Edge): pick a destination once and
-     files are written directly — point it at
-     `…\MiniFreak V\Factory\WT\User` or `…\Factory\Samples\User` to
-     install in place.
+     files are written directly — point it at the wavetable or sample
+     folder below to install in place.
    * **Download as .zip** (any browser): unzip into those folders.
 
-   If a batch contains *both* types they're split into `Samples\` and
-   `WT\` sub-folders, since each belongs in a different plugin folder.
+   If a batch contains *both* types they're split into `Samples/` and
+   `WT/` sub-folders, since each belongs in a different plugin folder.
 3. **Convert** — progress is shown per file, with a result table.
+
+## Install locations
+
+The page detects your operating system and shows the matching paths, with
+a **Copy** button for each; the *Install paths for* selector overrides the
+detection when you're converting on one machine for another.
+
+**Windows**
+
+```
+C:\ProgramData\Arturia\Samples\MiniFreak V\Factory\Samples\User
+C:\ProgramData\Arturia\Samples\MiniFreak V\Factory\WT\User
+```
+
+`C:\ProgramData` is hidden in Explorer by default — paste the path into the
+address bar to open it.
+
+**macOS**
+
+```
+/Library/Arturia/Samples/MiniFreak V/Factory/Samples/User
+/Library/Arturia/Samples/MiniFreak V/Factory/WT/User
+```
+
+This is the machine-wide `/Library` at the root of your startup disk, **not**
+your home `~/Library` — Finder hides both by default. Press <kbd>⇧⌘G</kbd> in
+Finder and paste a path to jump straight there.
+
+### macOS notes
+
+* **Use Safari or Firefox? You'll get the .zip.** Direct folder writing needs
+  the File System Access API, which on macOS means Chrome or Edge. The page
+  falls back to the ZIP download automatically.
+* **Even in Chrome, the picker may refuse `/Library`.** Browsers block a set of
+  protected system folders in the directory picker. If the folder can't be
+  selected, take the .zip and copy the files across in Finder instead.
+* **Writing into `/Library` needs an admin password.** Finder prompts for it on
+  the first copy; that's expected for a machine-wide folder.
+* **Safari unzips downloads for you.** With *Open "safe" files after
+  downloading* enabled you'll find an already-extracted folder in `~/Downloads`
+  rather than the `.zip` — copy its *contents* into the folders above, not the
+  folder itself.
+* **Ignore any `__MACOSX` folder or `._` files** that appear if the archive is
+  unzipped by a third-party tool. They're macOS metadata, not samples, and
+  MiniFreak V will not read them.
 
 ## Implementation notes
 
@@ -53,7 +97,8 @@ Everything is inline in `index.html` — no external scripts or CDNs:
 
 * Direct folder writing needs a Chromium browser; other browsers get the
   ZIP path. Browsers also block some protected system folders from the
-  directory picker.
+  directory picker — on macOS this often includes `/Library`, so the ZIP
+  route plus a Finder copy is the reliable path there.
 * Wavetable import expects **mono** frame-structured WAVs.
 * Large batches are converted in memory; a few hundred files is fine,
   but the ZIP is built in RAM before download.
