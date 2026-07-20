@@ -26,28 +26,39 @@ Open `index.html` in a browser (double-click it, or host it anywhere).
    and everything else as a one-shot sample; you can also force a type.
    Folders are read recursively and their structure is preserved.
 2. **Output** — either:
-   * **Write to a folder** (Chrome / Edge): pick a destination once and
-     files are written directly — point it at the wavetable or sample
-     folder below to install in place.
-   * **Download as .zip** (any browser): unzip into those folders.
-
-   If a batch contains *both* types they're split into `Samples/` and
-   `WT/` sub-folders, since each belongs in a different plugin folder.
+   * **Download as .zip** — works in every browser.
+   * **Save to a folder I choose** (Chrome / Edge) — writes into a working
+     folder of your choosing, with no archive to unpack.
 3. **Convert** — progress is shown per file, with a result table.
+4. **Copy the files into place** — see *Installing the files* below.
+
+### What you get out
+
+The batch determines the shape of the output:
+
+| Batch | What you get |
+|---|---|
+| **All samples** | `.raw12b` files, loose |
+| **All wavetables** | `.raw` files, loose |
+| **Mixed** | a `Samples/` folder and a `WT/` folder, since each type has its own destination |
+
+Any folder structure from your input is preserved inside that, and an existing
+file of the same name is overwritten without a prompt. MiniFreak V itself reads
+files only, not nested sub-folders.
+
+### A non-standard install
+
+If your Arturia content isn't in the stock location — another drive, a moved
+folder — edit the **Factory folder** field under the paths. Every path shown
+and copied follows it, and it's remembered for next time; **Reset** restores
+the OS default.
 
 ## Install locations
 
 The page detects your operating system and shows the matching paths, with
-a **Copy** button for each; the *Install paths for* selector overrides the
-detection when you're converting on one machine for another.
-
-**Note:** The folders paths below user a "User" directory instead of the 
-"Factory" directory that the plugin ships the factory samples in. You can 
-name the folder anything you like, but I reccomend keeping it separate or 
-else it will try to upload the samples to your hardware MiniFreak when you
-link it to the VST. It **is possible** to transfer these files to your 
-hardware, but I would advise **CAUTION** when doing so... at this time there
-is no known way to remove the files that were sent to the hardware synth.
+a **Copy** button for each; the *MiniFreak V is installed on* selector
+overrides the detection when you're converting on one machine for another,
+and the *Factory folder* field overrides the paths themselves.
 
 **Windows**
 
@@ -55,6 +66,9 @@ is no known way to remove the files that were sent to the hardware synth.
 C:\ProgramData\Arturia\Samples\MiniFreak V\Factory\Samples\User
 C:\ProgramData\Arturia\Samples\MiniFreak V\Factory\WT\User
 ```
+
+The last segment is a folder *you* create and can name anything; `User` is the
+name used throughout these docs.
 
 `C:\ProgramData` is hidden in Explorer by default — paste the path into the
 address bar to open it.
@@ -70,23 +84,54 @@ This is the machine-wide `/Library` at the root of your startup disk, **not**
 your home `~/Library` — Finder hides both by default. Press <kbd>⇧⌘G</kbd> in
 Finder and paste a path to jump straight there.
 
-### macOS notes
+### Why a sub-folder, and not `Factory` itself
 
-* **Use Safari or Firefox? You'll get the .zip.** Direct folder writing needs
-  the File System Access API, which on macOS means Chrome or Edge. The page
-  falls back to the ZIP download automatically.
-* **Even in Chrome, the picker may refuse `/Library`.** Browsers block a set of
-  protected system folders in the directory picker. If the folder can't be
-  selected, take the .zip and copy the files across in Finder instead.
-* **Writing into `/Library` needs an admin password.** Finder prompts for it on
-  the first copy; that's expected for a machine-wide folder.
-* **Safari unzips downloads for you.** With *Open "safe" files after
-  downloading* enabled you'll find an already-extracted folder in `~/Downloads`
-  rather than the `.zip` — copy its *contents* into the folders above, not the
-  folder itself.
-* **Ignore any `__MACOSX` folder or `._` files** that appear if the archive is
-  unzipped by a third-party tool. They're macOS metadata, not samples, and
-  MiniFreak V will not read them.
+Keeping your content in a folder of its own, rather than loose among
+`Factory`'s files, keeps it out of the factory list — so it won't be swept
+along in a sample sync to the hardware synth unless you deliberately put it
+there.
+
+## Installing the files
+
+The page shows these steps for your detected OS, with a copy button for each
+path. Both are listed here too.
+
+### Windows
+
+1. Convert, and unpack the result — right-click the .zip → **Extract All…**
+2. Open **File Explorer**, click the address bar (or press
+   <kbd>Ctrl</kbd>+<kbd>L</kbd>), and paste:
+   ```
+   C:\ProgramData\Arturia\Samples\MiniFreak V\Factory
+   ```
+3. Make a folder inside each of `Samples\` and `WT\` to hold your content.
+   **Name it whatever you like** — MiniFreak V doesn't care; `User` is just a
+   tidy convention. The one rule is that it must contain **files only**:
+   sub-folders nested inside it are not read.
+4. Copy every `.raw12b` into your folder under `Samples\`, and every `.raw`
+   into your folder under `WT\`.
+5. **That's it.** MiniFreak V picks up new content as soon as it lands; no
+   restart or rescan is needed.
+
+### macOS
+
+1. Convert, and unpack the result — double-click the .zip. Safari may have
+   unzipped it already, so look for a folder rather than an archive.
+2. In **Finder** press <kbd>⇧⌘G</kbd> and paste:
+   ```
+   /Library/Arturia/Samples/MiniFreak V/Factory
+   ```
+3. Make a folder inside each of `Samples/` and `WT/` to hold your content.
+   **Name it whatever you like** — `User` is just a tidy convention. The one
+   rule is that it must contain **files only**: sub-folders nested inside it
+   are not read.
+4. Copy every `.raw12b` into your folder under `Samples/`, and every `.raw`
+   into your folder under `WT/`.
+5. **That's it.** MiniFreak V picks up new content as soon as it lands; no
+   restart or rescan is needed.
+
+Your content then appears under the folder name you chose — samples for the
+Sampler and Grain engines, wavetables for the Wavetable engine.
 
 ## Implementation notes
 
@@ -98,15 +143,19 @@ Everything is inline in `index.html` — no external scripts or CDNs:
   Python version uses numpy's arbitrary-size FFT there, so results can
   differ for such files — Serum tables are always powers of two).
 * A minimal stored-mode ZIP writer with CRC-32.
-* File System Access API for direct folder writing, feature-detected
-  with an automatic fall back to ZIP.
+* File System Access API for direct folder writing, feature-detected with
+  an automatic fall back to ZIP (the folder option is disabled outright when
+  the API is missing).
+* The custom Factory-folder string lives in `localStorage`.
 
 ## Limitations
 
 * Direct folder writing needs a Chromium browser; other browsers get the
-  ZIP path. Browsers also block some protected system folders from the
-  directory picker — on macOS this often includes `/Library`, so the ZIP
-  route plus a Finder copy is the reliable path there.
+  ZIP path.
+* The folder picker cannot open Arturia's own directories — Chrome and Edge
+  block protected system locations, including `C:\ProgramData` and
+  `/Library` ("can't open this folder because it contains system files").
+  Converted files always have to be copied into place by hand.
 * Wavetable import expects **mono** frame-structured WAVs.
 * Large batches are converted in memory; a few hundred files is fine,
   but the ZIP is built in RAM before download.
