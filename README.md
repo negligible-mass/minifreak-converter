@@ -41,6 +41,14 @@ The page detects your operating system and shows the matching paths, with
 a **Copy** button for each; the *Install paths for* selector overrides the
 detection when you're converting on one machine for another.
 
+**Note:** The folders paths below user a "User" directory instead of the 
+"Factory" directory that the plugin ships the factory samples in. You can 
+name the folder anything you like, but I reccomend keeping it separate or 
+else it will try to upload the samples to your hardware MiniFreak when you
+link it to the VST. It **is possible** to transfer these files to your 
+hardware, but I would advise **CAUTION** when doing so... at this time there
+is no known way to remove the files that were sent to the hardware synth.
+
 **Windows**
 
 ```
