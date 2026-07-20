@@ -1,5 +1,11 @@
 # MiniFreak Sample &amp; Wavetable Converter — static web version
 
+Inspired by https://github.com/mtizim/minifreak_sample_conv/
+
+**USE AT YOUR OWN RISK** - while I have not encountered any issues while 
+using this tool, it is not an official Arturia tool and can result in harm 
+to your device. 
+
 A **single self-contained `index.html`** that converts audio into Arturia
 **MiniFreak V** user content, entirely in the browser. No install, no
 Python, no server, no dependencies — and nothing is uploaded anywhere.
