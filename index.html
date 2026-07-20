@@ -68,6 +68,16 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
 #bar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;
      display:none;margin:12px 0}
 #barFill{height:100%;width:0;background:var(--accent);transition:width .15s}
+.paths{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.paths .p{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+     background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+     padding:9px 12px}
+.paths .p .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
+     font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.paths .p .lbl.sample{background:rgba(244,120,32,.16);color:var(--accent)}
+.paths .p .lbl.wavetable{background:rgba(181,126,220,.18);color:var(--wt)}
+.paths .p code{flex:1;min-width:200px;word-break:break-all;color:var(--text)}
+.paths .p button{padding:5px 11px;font-size:12px}
 .toast{position:fixed;right:18px;bottom:18px;background:var(--panel2);
        border:1px solid var(--line);border-radius:8px;padding:10px 16px;
        opacity:0;transition:.25s;pointer-events:none;z-index:9}
@@ -113,6 +123,19 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
         Download as .zip</label>
     </div>
     <div class="hint" id="destHint"></div>
+
+    <div class="row wrap" style="margin-top:14px">
+      <label for="os">Install paths for</label>
+      <select id="os" title="Which machine the MiniFreak V plugin is installed on">
+        <option value="auto">Auto-detect</option>
+        <option value="win">Windows</option>
+        <option value="mac">macOS</option>
+      </select>
+      <span class="hint" style="margin:0" id="osInfo"></span>
+    </div>
+    <div class="paths" id="paths"></div>
+    <div class="hint" id="osNotes"></div>
+
     <div class="row" style="margin-top:12px">
       <label>Wavetable max frames</label>
       <input type="number" id="maxFrames" min="1" max="512" value="189"
@@ -523,21 +546,79 @@ function render(done){
   } else b.style.display = "none";
 }
 function destMode(){ return document.querySelector('input[name=dest]:checked').value; }
+
+/* ---------------- install locations, per operating system ----------------
+   The MiniFreak V factory content lives in a machine-wide Arturia folder.
+   Detection only picks the default for the selector — the user can override
+   it, which matters when converting on one machine for another.            */
+const OS_INFO = {
+  win: {
+    name: "Windows", sep: "\\",
+    root: "C:\\ProgramData\\Arturia\\Samples\\MiniFreak V\\Factory",
+    samples: "Samples\\User", wt: "WT\\User",
+  },
+  mac: {
+    name: "macOS", sep: "/",
+    root: "/Library/Arturia/Samples/MiniFreak V/Factory",
+    samples: "Samples/User", wt: "WT/User",
+  },
+};
+function detectOS(){
+  const p = (navigator.userAgentData?.platform || navigator.platform || "")
+            + " " + navigator.userAgent;
+  return /mac|iphone|ipad|ipod/i.test(p) ? "mac" : "win";
+}
+const DETECTED = detectOS();
+function osKey(){
+  const v = $("os").value;
+  return v === "auto" ? DETECTED : v;
+}
+function osInfo(){ return OS_INFO[osKey()]; }
+function fullPath(which){
+  const o = osInfo();
+  return o.root + o.sep + (which === "wt" ? o.wt : o.samples);
+}
+function updatePaths(){
+  const o = osInfo();
+  $("osInfo").textContent = $("os").value === "auto"
+    ? `detected ${o.name}` : `showing ${o.name} paths`;
+  $("paths").innerHTML = [["sample","Samples","samples"],["wavetable","Wavetables","wt"]]
+    .map(([cls, label, which]) =>
+      `<div class="p"><span class="lbl ${cls}">${label}</span>`
+      + `<code>${fullPath(which)}</code>`
+      + `<button type="button" data-copy="${which}">Copy</button></div>`).join("");
+  for(const b of $("paths").querySelectorAll("button[data-copy]"))
+    b.onclick = () => {
+      navigator.clipboard.writeText(fullPath(b.dataset.copy))
+        .then(() => toast("Path copied"), () => toast("Couldn't copy", true));
+    };
+  $("osNotes").innerHTML = osKey() === "mac"
+    ? "On macOS this is the machine-wide <code>/Library</code> (not your home "
+      + "<code>~/Library</code>), so Finder hides it by default and writing "
+      + "there asks for your admin password. In Finder press "
+      + "<b>⇧⌘G</b> and paste a path above to jump straight to it. "
+      + "Safari and Firefox can't write to folders directly, so they always "
+      + "use the .zip route."
+    : "Note that <code>C:\\ProgramData</code> is hidden in Explorer by "
+      + "default — paste a path above into the address bar to open it.";
+}
 function updateDestHint(){
   const fsa = destMode() === "fsa";
+  const o = osInfo();
+  const sPath = `<code>…${o.sep}Factory${o.sep}${o.samples}</code>`;
+  const wPath = `<code>…${o.sep}Factory${o.sep}${o.wt}</code>`;
+  const split = `<code>Samples${o.sep}</code> and <code>WT${o.sep}</code>`;
   $("destHint").innerHTML = fsa
     ? (hasFSA
         ? "You'll be asked to pick a destination folder. Point it at "
-          + "<code>…\\MiniFreak V\\Factory\\WT\\User</code> (wavetables) or "
-          + "<code>…\\Factory\\Samples\\User</code> (samples) to install directly. "
-          + "If the batch has <i>both</i> types they go into <code>Samples\\</code> "
-          + "and <code>WT\\</code> sub-folders so you can move each into place."
+          + `${wPath} (wavetables) or ${sPath} (samples) to install directly. `
+          + `If the batch has <i>both</i> types they go into ${split} `
+          + "sub-folders so you can move each into place."
         : "<span style='color:var(--bad)'>This browser can't write to folders "
           + "(needs Chrome or Edge) — use the .zip option instead.</span>")
     : "A .zip is downloaded with your folder structure preserved. Unzip into "
-      + "<code>…\\MiniFreak V\\Factory\\WT\\User</code> / "
-      + "<code>…\\Factory\\Samples\\User</code>. Mixed batches are split into "
-      + "<code>Samples\\</code> and <code>WT\\</code> sub-folders.";
+      + `${wPath} / ${sPath}. Mixed batches are split into ${split} `
+      + "sub-folders.";
 }
 
 /* output path: swap extension, and split by type when the batch is mixed */
@@ -616,7 +697,10 @@ drop.addEventListener("drop", e => {
   accept(e.dataTransfer.files);
 });
 
+$("os").onchange = () => { updatePaths(); updateDestHint(); };
+
 if(!hasFSA) document.querySelector('input[name=dest][value=zip]').checked = true;
+updatePaths();
 updateDestHint();
 </script>
 </body>
