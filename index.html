@@ -25,8 +25,11 @@ main{max-width:1000px;margin:0 auto;padding:20px 22px 60px}
          letter-spacing:.13em;color:var(--text);
          border-bottom:1px solid var(--line);padding-bottom:8px}
 label{color:var(--dim)}
-input[type=number],select{background:var(--panel2);color:var(--text);
-  border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:inherit}
+input[type=number],input[type=text],select{background:var(--panel2);
+  color:var(--text);border:1px solid var(--line);border-radius:6px;
+  padding:8px 10px;font:inherit}
+#rootInput{flex:1;min-width:260px;font-family:ui-monospace,Consolas,monospace;
+  font-size:12px}
 .row{display:flex;gap:10px;align-items:center;margin:6px 0}
 .row.wrap{flex-wrap:wrap}
 button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
@@ -61,14 +64,29 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
 .st-planned{color:var(--dim)}
 #tableWrap{max-height:420px;overflow:auto;border:1px solid var(--line);
            border-radius:8px}
-#results{display:none}
+#tableWrap{display:none}
 .banner{padding:11px 15px;border-radius:8px;margin-bottom:14px;display:none}
 .banner.ok{background:rgba(129,199,132,.12);border:1px solid var(--good)}
 .banner.bad{background:rgba(229,115,115,.12);border:1px solid var(--bad)}
 #bar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;
      display:none;margin:12px 0}
 #barFill{height:100%;width:0;background:var(--accent);transition:width .15s}
-.paths{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.sep{height:1px;background:var(--line);margin:16px 0 14px}
+.dests{display:flex;flex-direction:column;gap:9px;margin-bottom:12px}
+.dests .opt{align-items:flex-start;line-height:1.45}
+.dests .opt input{margin-top:3px;flex:none}
+.dests .opt.off{opacity:.45}
+.dests .opt.off b{font-weight:600}
+.ok-txt{color:var(--good)} .bad-txt{color:var(--bad)}
+.banner.warn{background:rgba(244,120,32,.10);border:1px solid var(--accent);
+  display:block;font-size:12.5px;line-height:1.55;color:var(--text)}
+.steps{margin:16px 0 0;padding-left:22px;line-height:1.6}
+.steps li{margin-bottom:9px}
+.steps li::marker{color:var(--accent);font-weight:700}
+.steps code{background:var(--panel2);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px}
+.steps .sub{color:var(--dim);font-size:12px}
+.paths{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .paths .p{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
      background:var(--panel2);border:1px solid var(--line);border-radius:8px;
      padding:9px 12px}
@@ -77,6 +95,7 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
 .paths .p .lbl.sample{background:rgba(244,120,32,.16);color:var(--accent)}
 .paths .p .lbl.wavetable{background:rgba(181,126,220,.18);color:var(--wt)}
 .paths .p code{flex:1;min-width:200px;word-break:break-all;color:var(--text)}
+.paths .p .use{color:var(--dim);font-size:11.5px;white-space:nowrap}
 .paths .p button{padding:5px 11px;font-size:12px}
 .toast{position:fixed;right:18px;bottom:18px;background:var(--panel2);
        border:1px solid var(--line);border-radius:8px;padding:10px 16px;
@@ -109,32 +128,25 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
     <div class="hint">Auto-detect treats a WAV with a Serum
       <code>clm&nbsp;</code> chunk as a wavetable; everything else becomes a
       one-shot sample. Folders are read recursively and their structure is
-      preserved.</div>
+      preserved on the way out — but MiniFreak&nbsp;V itself won't read nested
+      folders, so you'll flatten them when you install.</div>
     <input type="file" id="fileFolder" webkitdirectory directory multiple hidden>
     <input type="file" id="fileList" multiple accept=".wav,audio/wav" hidden>
   </div>
 
   <div class="card">
     <h2>2 · Output</h2>
-    <div class="row wrap">
-      <label class="opt"><input type="radio" name="dest" value="fsa" checked>
-        Write to a folder</label>
-      <label class="opt"><input type="radio" name="dest" value="zip">
-        Download as .zip</label>
+    <div class="dests">
+      <label class="opt"><input type="radio" name="dest" value="zip" checked>
+        <span><b>Download as .zip</b> — works in every browser</span></label>
+      <label class="opt"><input type="radio" name="dest" value="folder">
+        <span><b>Save to a folder I choose</b> — a working folder you'll copy
+        from</span></label>
     </div>
+
     <div class="hint" id="destHint"></div>
 
-    <div class="row wrap" style="margin-top:14px">
-      <label for="os">Install paths for</label>
-      <select id="os" title="Which machine the MiniFreak V plugin is installed on">
-        <option value="auto">Auto-detect</option>
-        <option value="win">Windows</option>
-        <option value="mac">macOS</option>
-      </select>
-      <span class="hint" style="margin:0" id="osInfo"></span>
-    </div>
-    <div class="paths" id="paths"></div>
-    <div class="hint" id="osNotes"></div>
+    <div class="sep"></div>
 
     <div class="row" style="margin-top:12px">
       <label>Wavetable max frames</label>
@@ -146,7 +158,7 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
   </div>
 
   <div class="card" id="results">
-    <h2>3 · Results</h2>
+    <h2>3 · Export</h2>
     <div class="banner" id="banner"></div>
     <div class="chips" id="chips"></div>
     <div id="bar"><div id="barFill"></div></div>
@@ -158,6 +170,43 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
     </div>
     <div class="row" style="margin-top:16px;justify-content:flex-end">
       <button class="primary" id="btnConvert" disabled>Convert</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>4 · Where to put the files</h2>
+
+    <div class="banner warn" id="whyManual">
+      <b>The converted files have to be copied in by hand — a web page can't
+      do it for you.</b> Chrome and Edge refuse to open protected system
+      locations such as <span id="blockedName">system folders</span> in their
+      folder picker (“can't open this folder because it contains system
+      files”), and that's exactly where Arturia keeps its content. It's a
+      browser security rule with no way around it, so the last step is an
+      ordinary copy &amp; paste in <span id="fileMgr">your file
+      manager</span>.
+    </div>
+
+    <div class="row wrap">
+      <label for="os">MiniFreak&nbsp;V is installed on</label>
+      <select id="os" title="Which machine the MiniFreak V plugin is installed on">
+        <option value="auto">Auto-detect</option>
+        <option value="win">Windows</option>
+        <option value="mac">macOS</option>
+      </select>
+      <span class="hint" style="margin:0" id="osInfo"></span>
+    </div>
+
+    <div class="hint" id="pathsLead"></div>
+    <div class="paths" id="paths"></div>
+
+    <ol class="steps" id="steps"></ol>
+
+    <div class="row wrap" style="margin-top:14px">
+      <label for="rootInput">Factory folder</label>
+      <input type="text" id="rootInput" spellcheck="false"
+             title="Change this if your Arturia content isn't in the stock location">
+      <button id="btnRootReset" style="display:none">Reset</button>
     </div>
   </div>
 
@@ -456,6 +505,7 @@ function makeZip(entries){          // [{name, data:Uint8Array}]
 
 /* ============================ file system access ============================ */
 const hasFSA = typeof window.showDirectoryPicker === "function";
+
 async function dirFor(root, parts){          // create/walk nested dirs
   let d = root;
   for(const p of parts) d = await d.getDirectoryHandle(p, {create:true});
@@ -515,7 +565,10 @@ function counts(){
 }
 function render(done){
   const c = counts();
-  $("results").style.display = ITEMS.length ? "block" : "none";
+  /* The card itself stays put so the step numbering reads 1-2-3-4; only the
+     file table appears once there's something to list. */
+  $("tableWrap").style.display = ITEMS.length ? "block" : "none";
+  $("chips").style.display = ITEMS.length ? "flex" : "none";
   $("chips").innerHTML =
       `<span class="chip">total <b>${c.total}</b></span>`
     + `<span class="chip">samples <b>${c.samples}</b></span>`
@@ -533,15 +586,18 @@ function render(done){
       + `<td>${it.info || ""}</td><td>${st}</td>`;
     tb.appendChild(tr);
   }
+  updateDestHint();          // the hint depends on what's queued
   const btn = $("btnConvert");
-  btn.disabled = (c.samples + c.wavetables) === 0;
-  btn.textContent = done ? "Convert again" : `Convert ${c.samples + c.wavetables} file(s)`;
+  const n = c.samples + c.wavetables;
+  btn.disabled = n === 0;
+  btn.textContent = done ? "Convert again"
+    : n === 0 ? "Convert" : `Convert ${n} file(s)`;
   const b = $("banner");
   if(done){
-    const n = ITEMS.filter(i => i.status === "converted").length;
+    const nDone = ITEMS.filter(i => i.status === "converted").length;
     b.className = "banner " + (c.errors ? "bad" : "ok");
     b.style.display = "block";
-    b.textContent = `Converted ${n} file(s)`
+    b.textContent = `Converted ${nDone} file(s)`
       + (c.errors ? `, ${c.errors} error(s) — see the table.` : ".");
   } else b.style.display = "none";
 }
@@ -563,6 +619,36 @@ const OS_INFO = {
     samples: "Samples/User", wt: "WT/User",
   },
 };
+/* Per-OS wording for the install walkthrough. */
+const OS_HOW = {
+  win: {
+    blocked: "<code>C:\\ProgramData</code>", mgr: "File Explorer",
+    open: "Open <b>File Explorer</b>, click the address bar (or press "
+        + "<code>Ctrl</code>+<code>L</code>), paste the path and press Enter.",
+    hidden: "<code>ProgramData</code> is a hidden folder, so pasting the path "
+          + "is far easier than browsing to it.",
+    unzip: "Right-click the .zip → <b>Extract All…</b>",
+  },
+  mac: {
+    blocked: "<code>/Library</code>", mgr: "Finder",
+    open: "In <b>Finder</b> press <code>⇧⌘G</code>, paste the path and press "
+        + "Enter.",
+    hidden: "This is the <i>system</i> <code>/Library</code> at the root of "
+          + "your startup disk, <b>not</b> your home <code>~/Library</code>. "
+          + "Finder hides both, so use ⇧⌘G rather than clicking through.",
+    unzip: "Double-click the .zip. (Safari may have unzipped it for you "
+         + "already — look for a folder, not an archive.)",
+  },
+};
+
+/* An override for people whose Arturia content isn't on the system drive /
+   in the stock location.                                                  */
+const ROOT_KEY = "mfconv.customRoot";
+let CUSTOM_ROOT = "";
+try{ CUSTOM_ROOT = localStorage.getItem(ROOT_KEY) || ""; }catch(e){}
+
+function rootPath(){ return CUSTOM_ROOT || OS_INFO[osKey()].root; }
+function sep(){ return rootPath().includes("\\") ? "\\" : "/"; }
 function detectOS(){
   const p = (navigator.userAgentData?.platform || navigator.platform || "")
             + " " + navigator.userAgent;
@@ -575,50 +661,131 @@ function osKey(){
 }
 function osInfo(){ return OS_INFO[osKey()]; }
 function fullPath(which){
-  const o = osInfo();
-  return o.root + o.sep + (which === "wt" ? o.wt : o.samples);
+  const s = sep();
+  return rootPath() + s + (which === "wt" ? "WT" : "Samples") + s + "User";
+}
+function setCustomRoot(v){
+  CUSTOM_ROOT = (v || "").trim().replace(/[\\/]+$/, "");
+  try{
+    if(CUSTOM_ROOT) localStorage.setItem(ROOT_KEY, CUSTOM_ROOT);
+    else localStorage.removeItem(ROOT_KEY);
+  }catch(e){}
+  updatePaths();
+  updateDestHint();
 }
 function updatePaths(){
   const o = osInfo();
   $("osInfo").textContent = $("os").value === "auto"
-    ? `detected ${o.name}` : `showing ${o.name} paths`;
-  $("paths").innerHTML = [["sample","Samples","samples"],["wavetable","Wavetables","wt"]]
-    .map(([cls, label, which]) =>
+    ? `auto-detected: ${o.name}` : `override: showing ${o.name} paths`;
+  $("rootInput").value = rootPath();
+  $("rootInput").placeholder = o.root;
+  $("btnRootReset").style.display = CUSTOM_ROOT ? "" : "none";
+  $("pathsLead").innerHTML = (CUSTOM_ROOT
+      ? "Using <b>your custom</b> Factory folder — samples and wavetables live "
+        + "in two <i>different</i> places inside it"
+      : `Converted files must end up in these <b>${o.name}</b> folders — `
+        + "samples and wavetables live in two <i>different</i> places")
+    + ". The last part is a folder <i>you</i> create; <code>User</code> is "
+    + "only a suggested name:";
+  $("paths").innerHTML = [
+      ["sample","Samples","samples","→ Sample &amp; Grain engines"],
+      ["wavetable","Wavetables","wt","→ Wavetable engine"],
+    ].map(([cls, label, which, use]) =>
       `<div class="p"><span class="lbl ${cls}">${label}</span>`
       + `<code>${fullPath(which)}</code>`
+      + `<span class="use">${use}</span>`
       + `<button type="button" data-copy="${which}">Copy</button></div>`).join("");
   for(const b of $("paths").querySelectorAll("button[data-copy]"))
     b.onclick = () => {
       navigator.clipboard.writeText(fullPath(b.dataset.copy))
         .then(() => toast("Path copied"), () => toast("Couldn't copy", true));
     };
-  $("osNotes").innerHTML = osKey() === "mac"
-    ? "On macOS this is the machine-wide <code>/Library</code> (not your home "
-      + "<code>~/Library</code>), so Finder hides it by default and writing "
-      + "there asks for your admin password. In Finder press "
-      + "<b>⇧⌘G</b> and paste a path above to jump straight to it. "
-      + "Safari and Firefox can't write to folders directly, so they always "
-      + "use the .zip route."
-    : "Note that <code>C:\\ProgramData</code> is hidden in Explorer by "
-      + "default — paste a path above into the address bar to open it.";
+  /* The walkthrough. Wording follows the selected OS and the custom root. */
+  const how = OS_HOW[osKey()], s = sep();
+  $("blockedName").innerHTML = how.blocked;
+  $("fileMgr").textContent = how.mgr;
+  $("steps").innerHTML = [
+    `<b>Convert</b> your WAVs above and get them out of the browser — the `
+      + ".zip, or a folder you choose.",
+    `<b>Unpack them.</b> ${how.unzip} You should end up with loose `
+      + `<code>.raw12b</code> / <code>.raw</code> files, or `
+      + `<code>Samples${s}</code> and <code>WT${s}</code> folders if you `
+      + "converted both types at once.",
+    `<b>Open the Factory folder.</b> ${how.open}<br>`
+      + `<span class="sub">Path: <code>${rootPath()}</code>`
+      + (CUSTOM_ROOT ? " (your custom location)" : ` — ${how.hidden}`)
+      + "</span>",
+    `<b>Make a folder inside each of <code>Samples${s}</code> and `
+      + `<code>WT${s}</code></b> to hold your content. <b>Name it whatever you `
+      + "like</b> — MiniFreak&nbsp;V doesn't care; <code>User</code> is just a "
+      + "tidy convention.<br>"
+      + "<span class=\"sub\">One rule: that folder must contain <b>files "
+      + "only</b>. Sub-folders nested inside it are not read.</span>",
+    `<b>Copy your files in:</b> every <code>.raw12b</code> into your folder `
+      + `under <code>Samples${s}</code>, every <code>.raw</code> into your `
+      + `folder under <code>WT${s}</code>.`,
+    "<b>That's it — they show up on their own.</b> MiniFreak&nbsp;V picks up "
+      + "new content as soon as it lands, so there's no restart or rescan to "
+      + "trigger. Samples are ready for the Sampler and Grain engines; "
+      + "wavetables appear in the Wavetable engine.",
+  ].map(li => `<li>${li}</li>`).join("");
 }
+/* The destination hint spells out exactly what you get out of the browser;
+   it reacts to what's actually queued. */
 function updateDestHint(){
-  const fsa = destMode() === "fsa";
   const o = osInfo();
-  const sPath = `<code>…${o.sep}Factory${o.sep}${o.samples}</code>`;
-  const wPath = `<code>…${o.sep}Factory${o.sep}${o.wt}</code>`;
-  const split = `<code>Samples${o.sep}</code> and <code>WT${o.sep}</code>`;
-  $("destHint").innerHTML = fsa
-    ? (hasFSA
-        ? "You'll be asked to pick a destination folder. Point it at "
-          + `${wPath} (wavetables) or ${sPath} (samples) to install directly. `
-          + `If the batch has <i>both</i> types they go into ${split} `
-          + "sub-folders so you can move each into place."
-        : "<span style='color:var(--bad)'>This browser can't write to folders "
-          + "(needs Chrome or Edge) — use the .zip option instead.</span>")
-    : "A .zip is downloaded with your folder structure preserved. Unzip into "
-      + `${wPath} / ${sPath}. Mixed batches are split into ${split} `
-      + "sub-folders.";
+  const c = counts();
+  const kinds = (c.samples > 0) + (c.wavetables > 0);   // 0, 1 or 2
+  const only = c.wavetables > 0 && !c.samples ? "wt" : "samples";
+  const onlyLabel = only === "wt" ? "wavetables" : "samples";
+  const split = `<code>Samples${sep()}</code> and <code>WT${sep()}</code>`;
+
+  const mode = destMode();
+
+  if(mode === "folder"){
+    if(!hasFSA){
+      $("destHint").innerHTML = "<span class='bad-txt'>This browser "
+        + "can't write to folders (needs Chrome or Edge) — use the .zip "
+        + "option instead.</span>";
+      return;
+    }
+    let s = "You pick one folder and everything is written inside it, with "
+      + "no .zip to unpack. <b>Pick a working folder you can reach — your "
+      + "Desktop, say.</b> The picker can't open Arturia's own folders "
+      + "(see below), so this is a staging step: you still copy the files "
+      + "across at the end.<br><br>";
+    if(kinds === 2){
+      s += `Your batch has both types, so you'll get ${split} sub-folders `
+        + "inside it — copy the contents of each into its matching folder.";
+    } else if(kinds === 1){
+      s += `Your batch is ${onlyLabel} only, so the files land loose in the `
+        + `folder you pick, ready to copy into <code>${fullPath(only)}</code>.`;
+    } else {
+      s += `A mixed batch is split into ${split} sub-folders; a single-type `
+        + "batch lands loose.";
+    }
+    s += " Existing files of the same name are overwritten without asking.";
+    $("destHint").innerHTML = s;
+    return;
+  }
+
+  let s = "A .zip lands in your usual downloads folder. Unzip it, then copy "
+    + "the files into the folders below — that last step is manual, and "
+    + "step&nbsp;4 walks through it.<br><br>";
+  if(kinds === 2){
+    s += `Because your batch has both types, the .zip contains ${split} `
+      + "sub-folders — copy the contents of each into its matching folder.";
+  } else if(kinds === 1){
+    s += `Your batch is ${onlyLabel} only, so the .zip's contents all go into `
+      + `<code>${fullPath(only)}</code>.`;
+  } else {
+    s += `A mixed batch is split into ${split} sub-folders inside the .zip; `
+      + "a single-type batch isn't.";
+  }
+  s += " Any folder structure from your input is preserved either way — "
+    + "which you'll want to <b>flatten</b> when you copy the files in, since "
+    + "MiniFreak&nbsp;V won't look inside nested sub-folders.";
+  $("destHint").innerHTML = s;
 }
 
 /* output path: swap extension, and split by type when the batch is mixed */
@@ -698,10 +865,20 @@ drop.addEventListener("drop", e => {
 });
 
 $("os").onchange = () => { updatePaths(); updateDestHint(); };
+$("rootInput").onchange = e => setCustomRoot(e.target.value);
+$("rootInput").onkeydown = e => { if(e.key === "Enter") e.target.blur(); };
+$("btnRootReset").onclick = () => setCustomRoot("");
 
-if(!hasFSA) document.querySelector('input[name=dest][value=zip]').checked = true;
+if(!hasFSA){
+  /* No File System Access API: only the .zip route can work here. */
+  document.querySelector('input[name=dest][value=zip]').checked = true;
+  const r = document.querySelector('input[name=dest][value=folder]');
+  r.disabled = true;
+  r.closest(".opt").classList.add("off");
+  r.closest(".opt").title = "Needs Chrome or Edge";
+}
 updatePaths();
-updateDestHint();
+render(false);        // also calls updateDestHint()
 </script>
 </body>
 </html>
