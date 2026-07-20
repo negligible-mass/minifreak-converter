@@ -30,17 +30,6 @@ Open `index.html` in a browser (double-click it, or host it anywhere).
    `WT\` sub-folders, since each belongs in a different plugin folder.
 3. **Convert** — progress is shown per file, with a result table.
 
-## Verified against the Python tool
-
-The conversion output is **byte-identical** to the
-[MinifreakConverter](../../Python%20Projects/MinifreakConverter) Python
-implementation — verified by SHA-256 on both a wavetable and a
-resampled stereo sample, and by extracting a generated `.zip` with
-Python's `zipfile` (all CRCs valid). The JS mirrors the Python exactly:
-the same `round(x * 127)` sample rule, the same `np.interp`-equivalent
-rate conversion, and the same FFT spectral truncation with `m/n` scaling
-for wavetable cycles.
-
 ## Implementation notes
 
 Everything is inline in `index.html` — no external scripts or CDNs:
