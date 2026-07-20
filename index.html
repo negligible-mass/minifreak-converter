@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MiniFreak Sample &amp; Wavetable Converter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#121213; --panel:#1c1c1e; --panel2:#28282b; --line:#38383c;
+  --text:#e9e9eb; --dim:#909096; --accent:#f47820; --cyan:#6ec6e0;
+  --good:#81c784; --bad:#e57373; --wt:#b57edc;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+     font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em}
+header{background:#0d0d0e;border-bottom:1px solid var(--line);padding:14px 22px}
+header h1{margin:0;font-size:17px;letter-spacing:.06em;color:var(--accent);
+          font-weight:700}
+header .sub{color:var(--dim);font-size:12.5px;margin-top:3px}
+main{max-width:1000px;margin:0 auto;padding:20px 22px 60px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+      padding:18px;margin-bottom:18px}
+.card h2{margin:0 0 14px;font-size:12px;text-transform:uppercase;
+         letter-spacing:.13em;color:var(--text);
+         border-bottom:1px solid var(--line);padding-bottom:8px}
+label{color:var(--dim)}
+input[type=number],select{background:var(--panel2);color:var(--text);
+  border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:inherit}
+.row{display:flex;gap:10px;align-items:center;margin:6px 0}
+.row.wrap{flex-wrap:wrap}
+button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+       border-radius:7px;padding:9px 16px;font:inherit;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);color:#141414;border-color:var(--accent);
+               font-weight:600;font-size:15px;padding:11px 22px}
+button.primary:hover:not(:disabled){filter:brightness(1.1);color:#141414}
+button:disabled{opacity:.45;cursor:default}
+.opt{display:flex;gap:7px;align-items:center;color:var(--text)}
+.hint{color:var(--dim);font-size:12px;margin-top:6px}
+#drop{border:2px dashed var(--line);border-radius:10px;padding:22px;
+      text-align:center;color:var(--dim);transition:.15s;margin-top:12px}
+#drop.over{border-color:var(--accent);color:var(--accent);
+           background:rgba(244,120,32,.06)}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.chip{background:var(--panel2);border:1px solid var(--line);border-radius:20px;
+      padding:5px 14px;font-size:13px}
+.chip b{color:var(--accent)}
+.chip.wt b{color:var(--wt)} .chip.err b{color:var(--bad)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;color:var(--dim);font-weight:500;padding:6px 8px;
+   border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+td{padding:5px 8px;border-bottom:1px solid #232326}
+td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
+        max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
+       padding:2px 8px;border-radius:10px;font-weight:600}
+.badge.sample{background:rgba(244,120,32,.16);color:var(--accent)}
+.badge.wavetable{background:rgba(181,126,220,.18);color:var(--wt)}
+.st-converted{color:var(--good)} .st-error{color:var(--bad)}
+.st-planned{color:var(--dim)}
+#tableWrap{max-height:420px;overflow:auto;border:1px solid var(--line);
+           border-radius:8px}
+#results{display:none}
+.banner{padding:11px 15px;border-radius:8px;margin-bottom:14px;display:none}
+.banner.ok{background:rgba(129,199,132,.12);border:1px solid var(--good)}
+.banner.bad{background:rgba(229,115,115,.12);border:1px solid var(--bad)}
+#bar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;
+     display:none;margin:12px 0}
+#barFill{height:100%;width:0;background:var(--accent);transition:width .15s}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--panel2);
+       border:1px solid var(--line);border-radius:8px;padding:10px 16px;
+       opacity:0;transition:.25s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}.toast.bad{border-color:var(--bad)}
+</style>
+</head>
+<body>
+<header>
+  <h1>MINIFREAK · SAMPLE &amp; WAVETABLE CONVERTER</h1>
+  <div class="sub">Runs entirely in your browser — nothing is uploaded.
+    WAV → <code>.raw12b</code> samples and Serum-style wavetables →
+    <code>.raw</code>.</div>
+</header>
+<main>
+
+  <div class="card">
+    <h2>1 · Input</h2>
+    <div class="row wrap">
+      <button id="btnFolder">Choose folder…</button>
+      <button id="btnFiles">Choose files…</button>
+      <select id="mode" title="How to treat each file">
+        <option value="auto">Auto-detect</option>
+        <option value="sample">Force sample</option>
+        <option value="wavetable">Force wavetable</option>
+      </select>
+      <span class="hint" style="margin:0" id="inputInfo">no files selected</span>
+    </div>
+    <div id="drop">…or drop WAV files here</div>
+    <div class="hint">Auto-detect treats a WAV with a Serum
+      <code>clm&nbsp;</code> chunk as a wavetable; everything else becomes a
+      one-shot sample. Folders are read recursively and their structure is
+      preserved.</div>
+    <input type="file" id="fileFolder" webkitdirectory directory multiple hidden>
+    <input type="file" id="fileList" multiple accept=".wav,audio/wav" hidden>
+  </div>
+
+  <div class="card">
+    <h2>2 · Output</h2>
+    <div class="row wrap">
+      <label class="opt"><input type="radio" name="dest" value="fsa" checked>
+        Write to a folder</label>
+      <label class="opt"><input type="radio" name="dest" value="zip">
+        Download as .zip</label>
+    </div>
+    <div class="hint" id="destHint"></div>
+    <div class="row" style="margin-top:12px">
+      <label>Wavetable max frames</label>
+      <input type="number" id="maxFrames" min="1" max="512" value="189"
+             style="width:90px">
+      <span class="hint" style="margin:0">larger tables are evenly reduced;
+        the engine crashes above its limit (189)</span>
+    </div>
+  </div>
+
+  <div class="card" id="results">
+    <h2>3 · Results</h2>
+    <div class="banner" id="banner"></div>
+    <div class="chips" id="chips"></div>
+    <div id="bar"><div id="barFill"></div></div>
+    <div id="tableWrap">
+      <table>
+        <thead><tr><th>File</th><th>Type</th><th>Detail</th><th>Status</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:16px;justify-content:flex-end">
+      <button class="primary" id="btnConvert" disabled>Convert</button>
+    </div>
+  </div>
+
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const FRAME = 512, FULL24 = 1 << 23, RATE = 48000;
+let ITEMS = [];              // {file, rel, kind, info, srcFrames, outFrames, error, status}
+
+/* ============================ helpers ============================ */
+function toast(msg, bad){
+  const t = $("toast"); t.textContent = msg;
+  t.className = "toast show" + (bad ? " bad" : "");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.className="toast", 2800);
+}
+const isPow2 = n => n > 0 && (n & (n - 1)) === 0;
+const yieldUI = () => new Promise(r => setTimeout(r, 0));
+
+/* ============================ WAV parsing ============================ */
+/* Walk RIFF chunks. Returns {tag,channels,rate,bits,clmFrame,dataOff,dataSize} */
+function parseWavHeader(buf){
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  const tag4 = o => String.fromCharCode(u8[o],u8[o+1],u8[o+2],u8[o+3]);
+  if(tag4(0) !== "RIFF" || tag4(8) !== "WAVE") throw new Error("not a WAV file");
+  let pos = 12, h = {clmFrame:null, dataOff:null, dataSize:0};
+  while(pos + 8 <= buf.byteLength){
+    const id = tag4(pos), sz = dv.getUint32(pos+4, true);
+    if(id === "fmt "){
+      h.tag = dv.getUint16(pos+8, true);
+      h.channels = dv.getUint16(pos+10, true);
+      h.rate = dv.getUint32(pos+12, true);
+      h.bits = dv.getUint16(pos+22, true);
+    } else if(id === "clm "){
+      const txt = new TextDecoder().decode(u8.subarray(pos+8, pos+8+sz));
+      const m = txt.match(/<!>\s*(\d+)/);
+      if(m) h.clmFrame = parseInt(m[1], 10);
+    } else if(id === "data"){
+      // dataSize is the *declared* size — scanning only reads the first few
+      // KB of a file, so keep the declaration and clamp separately when the
+      // samples are actually decoded.
+      h.dataOff = pos + 8; h.dataSize = sz;
+      h.availSize = Math.max(0, Math.min(sz, buf.byteLength - pos - 8));
+    }
+    pos += 8 + sz + (sz & 1);
+  }
+  if(h.tag === undefined) throw new Error("no fmt chunk");
+  return h;
+}
+/* Decode the data chunk into per-channel Float64Arrays (values in [-1,1]) */
+function decodeSamples(buf, h){
+  const dv = new DataView(buf);
+  const bytes = h.bits >> 3, ch = h.channels;
+  const avail = h.availSize !== undefined ? h.availSize : h.dataSize;
+  const nFrames = Math.floor(avail / (bytes * ch));
+  const out = [];
+  for(let c = 0; c < ch; c++) out.push(new Float64Array(nFrames));
+  for(let i = 0; i < nFrames; i++){
+    for(let c = 0; c < ch; c++){
+      const o = h.dataOff + (i * ch + c) * bytes;
+      let v;
+      if(h.tag === 3 && h.bits === 32)      v = dv.getFloat32(o, true);
+      else if(h.tag === 3 && h.bits === 64) v = dv.getFloat64(o, true);
+      else if(h.bits === 16)                v = dv.getInt16(o, true) / 32768;
+      else if(h.bits === 8)                 v = (dv.getUint8(o) - 128) / 128;
+      else if(h.bits === 24){
+        const b0 = dv.getUint8(o), b1 = dv.getUint8(o+1), b2 = dv.getUint8(o+2);
+        let q = b0 | (b1 << 8) | (b2 << 16);
+        if(q >= FULL24) q -= 1 << 24;
+        v = q / FULL24;
+      }
+      else if(h.bits === 32)                v = dv.getInt32(o, true) / 2147483648;
+      else throw new Error(`unsupported WAV format tag=${h.tag} bits=${h.bits}`);
+      out[c][i] = v;
+    }
+  }
+  return out;
+}
+function downmix(chans){
+  if(chans.length === 1) return chans[0];
+  const n = chans[0].length, out = new Float64Array(n);
+  for(let i = 0; i < n; i++){
+    let s = 0;
+    for(const c of chans) s += c[i];
+    out[i] = s / chans.length;
+  }
+  return out;
+}
+/* Rate conversion, matching the Python tool exactly:
+   np.interp(arange(n_out) * srcRate/dstRate, arange(n), x)
+   — query points step by the rate ratio and clamp at the last sample. */
+function resampleRate(x, srcRate, dstRate){
+  if(srcRate === dstRate) return x;
+  const n = x.length;
+  const outLen = Math.round(n * dstRate / srcRate);
+  const out = new Float64Array(outLen);
+  if(n === 0) return out;
+  const ratio = srcRate / dstRate;
+  for(let i = 0; i < outLen; i++){
+    const t = i * ratio, j = Math.floor(t);
+    if(j >= n - 1){ out[i] = x[n-1]; continue; }
+    const f = t - j;
+    out[i] = x[j] * (1 - f) + x[j+1] * f;
+  }
+  return out;
+}
+/* index-based linear resample; only used as a fallback for non-power-of-two
+   wavetable frame sizes, where the radix-2 FFT can't be applied */
+function resampleLinear(x, outLen){
+  const n = x.length, out = new Float64Array(outLen);
+  if(n === 0) return out;
+  const step = (n - 1) / Math.max(1, outLen - 1);
+  for(let i = 0; i < outLen; i++){
+    const t = i * step, j = Math.floor(t), f = t - j;
+    out[i] = j + 1 < n ? x[j] * (1 - f) + x[j+1] * f : x[n-1];
+  }
+  return out;
+}
+
+/* ============================ FFT ============================ */
+const _fftTables = new Map();
+function fftTables(n){
+  let t = _fftTables.get(n);
+  if(t) return t;
+  const rev = new Uint32Array(n);
+  let bits = Math.log2(n);
+  for(let i = 0; i < n; i++){
+    let r = 0;
+    for(let b = 0; b < bits; b++) if(i & (1 << b)) r |= 1 << (bits - 1 - b);
+    rev[i] = r;
+  }
+  const cos = new Float64Array(n / 2), sin = new Float64Array(n / 2);
+  for(let i = 0; i < n / 2; i++){
+    cos[i] = Math.cos(-2 * Math.PI * i / n);
+    sin[i] = Math.sin(-2 * Math.PI * i / n);
+  }
+  t = {rev, cos, sin};
+  _fftTables.set(n, t);
+  return t;
+}
+/* iterative radix-2; inverse conjugates and scales by 1/n (numpy convention) */
+function fftInPlace(re, im, inverse){
+  const n = re.length, {rev, cos, sin} = fftTables(n);
+  for(let i = 0; i < n; i++){
+    const j = rev[i];
+    if(j > i){ let t = re[i]; re[i] = re[j]; re[j] = t;
+               t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  if(inverse) for(let i = 0; i < n; i++) im[i] = -im[i];
+  for(let len = 2; len <= n; len <<= 1){
+    const step = n / len, half = len >> 1;
+    for(let i = 0; i < n; i += len){
+      for(let k = 0; k < half; k++){
+        const c = cos[k * step], s = sin[k * step];
+        const ar = re[i+k+half], ai = im[i+k+half];
+        const tr = ar * c - ai * s, ti = ar * s + ai * c;
+        re[i+k+half] = re[i+k] - tr; im[i+k+half] = im[i+k] - ti;
+        re[i+k] += tr; im[i+k] += ti;
+      }
+    }
+  }
+  if(inverse) for(let i = 0; i < n; i++){ re[i] /= n; im[i] = -im[i] / n; }
+}
+/* Band-limited resample of one single-cycle waveform to m points.
+   Mirrors the Python: truncate/zero-pad the spectrum, scale by m/n. */
+function resampleCycle(x, m){
+  const n = x.length;
+  if(n === m) return Float64Array.from(x);
+  if(!isPow2(n) || !isPow2(m)) return resampleLinear(x, m);
+  const re = Float64Array.from(x), im = new Float64Array(n);
+  fftInPlace(re, im, false);
+  const ore = new Float64Array(m), oim = new Float64Array(m);
+  const half = m >> 1, srcHalf = n >> 1;
+  for(let k = 0; k <= half; k++){
+    if(k > srcHalf) break;                       // upsampling: leave zeros
+    let rr = re[k], ii = im[k];
+    if(m < n && k === half) ii = 0;              // new Nyquist bin stays real
+    ore[k] = rr; oim[k] = ii;
+    if(k > 0 && k < half){ ore[m-k] = rr; oim[m-k] = -ii; }   // Hermitian
+  }
+  fftInPlace(ore, oim, true);
+  const scale = m / n;
+  for(let i = 0; i < m; i++) ore[i] *= scale;
+  return ore;
+}
+
+/* ============================ encoders ============================ */
+function encodeSample(mono48k){                       // -> Uint8Array (int8)
+  const out = new Int8Array(mono48k.length);
+  for(let i = 0; i < mono48k.length; i++){
+    let q = Math.round(mono48k[i] * 127);
+    out[i] = q > 127 ? 127 : q < -128 ? -128 : q;
+  }
+  return new Uint8Array(out.buffer);
+}
+function encodeWavetable(frames){                     // frames: array of Float64Array(512)
+  const total = frames.length * FRAME;
+  const out = new Uint8Array(total * 3);
+  let p = 0;
+  for(const fr of frames){
+    for(let i = 0; i < FRAME; i++){
+      let q = Math.round(fr[i] * FULL24);
+      if(q > FULL24 - 1) q = FULL24 - 1;
+      if(q < -FULL24) q = -FULL24;
+      out[p++] = q & 0xFF; out[p++] = (q >> 8) & 0xFF; out[p++] = (q >> 16) & 0xFF;
+    }
+  }
+  return out;
+}
+
+/* ============================ conversion ============================ */
+function convertSample(buf){
+  const h = parseWavHeader(buf);
+  const mono = resampleRate(downmix(decodeSamples(buf, h)), h.rate, RATE);
+  return {bytes: encodeSample(mono), ext: ".raw12b",
+          info: (mono.length / RATE).toFixed(2) + "s"};
+}
+function convertWavetable(buf, maxFrames){
+  const h = parseWavHeader(buf);
+  const chans = decodeSamples(buf, h);
+  if(h.channels !== 1) throw new Error(`expected mono wavetable, got ${h.channels} channels`);
+  const data = chans[0];
+  const fsize = h.clmFrame || data.length;
+  if(data.length % fsize) throw new Error(`data length ${data.length} is not a multiple of the ${fsize}-sample frame`);
+  let count = data.length / fsize;
+  let idx = [...Array(count).keys()];
+  if(maxFrames && count > maxFrames){
+    idx = [];
+    for(let i = 0; i < maxFrames; i++)
+      idx.push(Math.round(i * (count - 1) / (maxFrames - 1)));
+  }
+  const frames = idx.map(i => resampleCycle(data.subarray(i*fsize, (i+1)*fsize), FRAME));
+  let peak = 0;
+  for(const f of frames) for(const v of f){ const a = Math.abs(v); if(a > peak) peak = a; }
+  if(peak > 1) for(const f of frames) for(let i = 0; i < FRAME; i++) f[i] /= peak;
+  const reduced = idx.length === count ? "" : ` → ${idx.length}`;
+  return {bytes: encodeWavetable(frames), ext: ".raw",
+          info: `${count} frames${reduced}`};
+}
+
+/* ============================ ZIP (stored, no deps) ============================ */
+const _crcTable = (() => {
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < buf.length; i++) c = _crcTable[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(entries){          // [{name, data:Uint8Array}]
+  const enc = new TextEncoder();
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const locals = [], centrals = [];
+  let offset = 0;
+  for(const e of entries){
+    const name = enc.encode(e.name), crc = crc32(e.data), sz = e.data.length;
+    const lh = new Uint8Array(30 + name.length);
+    const ld = new DataView(lh.buffer);
+    ld.setUint32(0, 0x04034B50, true); ld.setUint16(4, 20, true);
+    ld.setUint16(6, 0, true); ld.setUint16(8, 0, true);
+    ld.setUint16(10, dosTime, true); ld.setUint16(12, dosDate, true);
+    ld.setUint32(14, crc, true); ld.setUint32(18, sz, true);
+    ld.setUint32(22, sz, true); ld.setUint16(26, name.length, true);
+    ld.setUint16(28, 0, true);
+    lh.set(name, 30);
+    locals.push(lh, e.data);
+    const ch = new Uint8Array(46 + name.length);
+    const cd = new DataView(ch.buffer);
+    cd.setUint32(0, 0x02014B50, true); cd.setUint16(4, 20, true);
+    cd.setUint16(6, 20, true); cd.setUint16(8, 0, true);
+    cd.setUint16(10, 0, true); cd.setUint16(12, dosTime, true);
+    cd.setUint16(14, dosDate, true); cd.setUint32(16, crc, true);
+    cd.setUint32(20, sz, true); cd.setUint32(24, sz, true);
+    cd.setUint16(28, name.length, true); cd.setUint32(42, offset, true);
+    ch.set(name, 46);
+    centrals.push(ch);
+    offset += lh.length + sz;
+  }
+  const cdSize = centrals.reduce((a, c) => a + c.length, 0);
+  const eocd = new Uint8Array(22), ed = new DataView(eocd.buffer);
+  ed.setUint32(0, 0x06054B50, true);
+  ed.setUint16(8, entries.length, true); ed.setUint16(10, entries.length, true);
+  ed.setUint32(12, cdSize, true); ed.setUint32(16, offset, true);
+  return new Blob([...locals, ...centrals, eocd], {type:"application/zip"});
+}
+
+/* ============================ file system access ============================ */
+const hasFSA = typeof window.showDirectoryPicker === "function";
+async function dirFor(root, parts){          // create/walk nested dirs
+  let d = root;
+  for(const p of parts) d = await d.getDirectoryHandle(p, {create:true});
+  return d;
+}
+async function writeFSA(root, relPath, data){
+  const parts = relPath.split("/");
+  const name = parts.pop();
+  const d = await dirFor(root, parts);
+  const fh = await d.getFileHandle(name, {create:true});
+  const w = await fh.createWritable();
+  await w.write(data);
+  await w.close();
+}
+
+/* ============================ scanning ============================ */
+async function scanFiles(files){
+  const mode = $("mode").value;
+  const maxFrames = Number($("maxFrames").value) || 0;
+  ITEMS = [];
+  for(const f of files){
+    const rel = (f.webkitRelativePath || f.name).replace(/\\/g, "/");
+    const item = {file:f, rel, kind:"sample", info:"", error:null, status:"planned"};
+    try{
+      const head = await f.slice(0, 8192).arrayBuffer();
+      const h = parseWavHeader(head);
+      item.kind = mode === "auto" ? (h.clmFrame ? "wavetable" : "sample") : mode;
+      if(item.kind === "wavetable"){
+        const bytes = h.bits >> 3;
+        const fsize = h.clmFrame || 0;
+        const total = Math.floor(h.dataSize / bytes / Math.max(1, h.channels));
+        if(fsize && total % fsize === 0){
+          const count = total / fsize;
+          const out = maxFrames && count > maxFrames ? maxFrames : count;
+          item.srcFrames = count; item.outFrames = out;
+          item.info = `${count} frames` + (out === count ? "" : ` → ${out}`);
+        } else item.info = "frame layout read on convert";
+      } else {
+        const bytes = h.bits >> 3;
+        const n = Math.floor(h.dataSize / bytes / Math.max(1, h.channels));
+        item.info = (n / h.rate).toFixed(2) + "s";
+      }
+    }catch(e){ item.error = e.message; item.status = "error"; }
+    ITEMS.push(item);
+  }
+  render(false);
+}
+
+/* ============================ UI ============================ */
+function counts(){
+  return {
+    total: ITEMS.length,
+    samples: ITEMS.filter(i => i.kind === "sample" && !i.error).length,
+    wavetables: ITEMS.filter(i => i.kind === "wavetable" && !i.error).length,
+    errors: ITEMS.filter(i => i.error).length,
+  };
+}
+function render(done){
+  const c = counts();
+  $("results").style.display = ITEMS.length ? "block" : "none";
+  $("chips").innerHTML =
+      `<span class="chip">total <b>${c.total}</b></span>`
+    + `<span class="chip">samples <b>${c.samples}</b></span>`
+    + `<span class="chip wt">wavetables <b>${c.wavetables}</b></span>`
+    + (c.errors ? `<span class="chip err">errors <b>${c.errors}</b></span>` : "");
+  const tb = $("tbody");
+  tb.innerHTML = "";
+  for(const it of ITEMS){
+    const st = it.error ? `<span class="st-error">error: ${it.error}</span>`
+      : it.status === "converted" ? `<span class="st-converted">✓ saved</span>`
+      : `<span class="st-planned">ready</span>`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="path" title="${it.rel}">${it.rel}</td>`
+      + `<td><span class="badge ${it.kind}">${it.kind}</span></td>`
+      + `<td>${it.info || ""}</td><td>${st}</td>`;
+    tb.appendChild(tr);
+  }
+  const btn = $("btnConvert");
+  btn.disabled = (c.samples + c.wavetables) === 0;
+  btn.textContent = done ? "Convert again" : `Convert ${c.samples + c.wavetables} file(s)`;
+  const b = $("banner");
+  if(done){
+    const n = ITEMS.filter(i => i.status === "converted").length;
+    b.className = "banner " + (c.errors ? "bad" : "ok");
+    b.style.display = "block";
+    b.textContent = `Converted ${n} file(s)`
+      + (c.errors ? `, ${c.errors} error(s) — see the table.` : ".");
+  } else b.style.display = "none";
+}
+function destMode(){ return document.querySelector('input[name=dest]:checked').value; }
+function updateDestHint(){
+  const fsa = destMode() === "fsa";
+  $("destHint").innerHTML = fsa
+    ? (hasFSA
+        ? "You'll be asked to pick a destination folder. Point it at "
+          + "<code>…\\MiniFreak V\\Factory\\WT\\User</code> (wavetables) or "
+          + "<code>…\\Factory\\Samples\\User</code> (samples) to install directly. "
+          + "If the batch has <i>both</i> types they go into <code>Samples\\</code> "
+          + "and <code>WT\\</code> sub-folders so you can move each into place."
+        : "<span style='color:var(--bad)'>This browser can't write to folders "
+          + "(needs Chrome or Edge) — use the .zip option instead.</span>")
+    : "A .zip is downloaded with your folder structure preserved. Unzip into "
+      + "<code>…\\MiniFreak V\\Factory\\WT\\User</code> / "
+      + "<code>…\\Factory\\Samples\\User</code>. Mixed batches are split into "
+      + "<code>Samples\\</code> and <code>WT\\</code> sub-folders.";
+}
+
+/* output path: swap extension, and split by type when the batch is mixed */
+function outPath(it, ext, mixed){
+  let p = it.rel.replace(/\.wav$/i, "") + ext;
+  if(mixed) p = (it.kind === "wavetable" ? "WT/" : "Samples/") + p;
+  return p;
+}
+
+async function convertAll(){
+  const maxFrames = Number($("maxFrames").value) || 0;
+  const c = counts();
+  const mixed = c.samples > 0 && c.wavetables > 0;
+  const zip = destMode() === "zip";
+  let root = null;
+  if(!zip){
+    if(!hasFSA){ toast("This browser can't write folders — use .zip", true); return; }
+    try{ root = await window.showDirectoryPicker({mode:"readwrite"}); }
+    catch(e){ return; }   // user cancelled
+  }
+  const btn = $("btnConvert");
+  btn.disabled = true;
+  $("bar").style.display = "block";
+  const outputs = [];
+  let done = 0;
+  for(const it of ITEMS){
+    if(it.error){ done++; continue; }
+    try{
+      const buf = await it.file.arrayBuffer();
+      const res = it.kind === "wavetable"
+        ? convertWavetable(buf, maxFrames) : convertSample(buf);
+      it.info = res.info;
+      const path = outPath(it, res.ext, mixed);
+      if(zip) outputs.push({name: path, data: res.bytes});
+      else await writeFSA(root, path, res.bytes);
+      it.status = "converted";
+    }catch(e){ it.error = e.message; it.status = "error"; }
+    done++;
+    $("barFill").style.width = (100 * done / ITEMS.length) + "%";
+    if(done % 4 === 0){ render(false); await yieldUI(); }
+  }
+  if(zip && outputs.length){
+    const blob = makeZip(outputs);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "minifreak-converted.zip";
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+  }
+  $("bar").style.display = "none";
+  render(true);
+  toast("Done");
+}
+
+/* ============================ wiring ============================ */
+$("btnFolder").onclick = () => $("fileFolder").click();
+$("btnFiles").onclick  = () => $("fileList").click();
+function accept(list){
+  const wavs = [...list].filter(f => /\.wav$/i.test(f.name));
+  if(!wavs.length){ toast("No .wav files found", true); return; }
+  $("inputInfo").textContent = `${wavs.length} WAV file(s) selected`;
+  scanFiles(wavs);
+}
+$("fileFolder").onchange = e => accept(e.target.files);
+$("fileList").onchange   = e => accept(e.target.files);
+$("mode").onchange = () => { if(ITEMS.length) scanFiles(ITEMS.map(i => i.file)); };
+$("maxFrames").onchange = () => { if(ITEMS.length) scanFiles(ITEMS.map(i => i.file)); };
+$("btnConvert").onclick = convertAll;
+for(const r of document.querySelectorAll('input[name=dest]')) r.onchange = updateDestHint;
+
+const drop = $("drop");
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => {
+  e.preventDefault(); drop.classList.remove("over");
+  accept(e.dataTransfer.files);
+});
+
+if(!hasFSA) document.querySelector('input[name=dest][value=zip]').checked = true;
+updateDestHint();
+</script>
+</body>
+</html>
