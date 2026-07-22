@@ -4,7 +4,10 @@ Inspired by https://github.com/mtizim/minifreak_sample_conv/
 
 **USE AT YOUR OWN RISK** - while I have not encountered any issues while 
 using this tool, it is not an official Arturia tool and can result in harm 
-to your device. 
+to your device. **At this time it is not possible to remove any custom samples 
+from the hardware Minifreak. If you choose to synchronize any samples or 
+wavetables to the hardware synth, be advised that this is irreversible and may 
+damage your device!**
 
 A **single self-contained `index.html`** that converts audio into Arturia
 **MiniFreak V** user content, entirely in the browser. No install, no
