@@ -86,6 +86,23 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
 .steps code{background:var(--panel2);border:1px solid var(--line);
   border-radius:4px;padding:1px 5px}
 .steps .sub{color:var(--dim);font-size:12px}
+.hint.note{border-left:2px solid var(--cyan);padding:2px 0 2px 10px;
+  margin-top:14px}
+.disc{margin-top:14px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel2);padding:10px 13px;font-size:12.5px;
+  line-height:1.55;color:var(--dim)}
+.disc summary{cursor:pointer;color:var(--text);font-weight:600;
+  list-style-position:outside}
+.disc summary:hover{color:var(--accent)}
+.disc[open] summary{margin-bottom:8px}
+.disc p{margin:8px 0}
+.disc ol{margin:8px 0;padding-left:20px}
+.disc li{margin-bottom:5px}
+.disc b{color:var(--text)}
+.disc .warn-txt{color:var(--accent)}
+.disc .warn-txt b{color:var(--accent)}
+.disc .cred{color:var(--dim);font-size:11.5px;margin-bottom:0}
+.disc .mono{font-family:ui-monospace,Consolas,monospace}
 .paths{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .paths .p{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
      background:var(--panel2);border:1px solid var(--line);border-radius:8px;
@@ -127,9 +144,10 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
     <div id="drop">…or drop WAV files here</div>
     <div class="hint">Auto-detect treats a WAV with a Serum
       <code>clm&nbsp;</code> chunk as a wavetable; everything else becomes a
-      one-shot sample. Folders are read recursively and their structure is
-      preserved on the way out — but MiniFreak&nbsp;V itself won't read nested
-      folders, so you'll flatten them when you install.</div>
+      one-shot sample. Folders are read recursively, and the output is
+      flattened into one <code>Samples</code> and one <code>WT</code> folder —
+      MiniFreak&nbsp;V won't read nested folders, so there's no point keeping
+      them.</div>
     <input type="file" id="fileFolder" webkitdirectory directory multiple hidden>
     <input type="file" id="fileList" multiple accept=".wav,audio/wav" hidden>
   </div>
@@ -201,6 +219,29 @@ td.path{font-family:ui-monospace,Consolas,monospace;font-size:12px;
     <div class="paths" id="paths"></div>
 
     <ol class="steps" id="steps"></ol>
+
+    <div class="hint note" id="syncNote"></div>
+
+    <details class="disc">
+      <summary>Removing samples from the hardware</summary>
+      <p>If you've synced content to the synth and want it gone, the
+      instrument's debug menu can reset its storage:</p>
+      <ol>
+        <li>Hold the <b>oscillator select</b> and <b>filter type</b> buttons
+          together for a few seconds, then release to open the
+          <b>debug menu</b>.</li>
+        <li>Choose <b>Format Filesystem</b>.</li>
+        <li>Sync with MiniFreak&nbsp;V again to reload the factory tables and
+          samples.</li>
+      </ol>
+      <p class="warn-txt">This wipes <b>all</b> wavetables and samples on the
+      unit, factory content included — it's not a way to remove one sample.
+      The sync in step 3 puts the factory content back.</p>
+      <p>Delete your custom files from the computer <i>before</i> syncing,
+      or they'll simply be copied onto the unit again.</p>
+      <p class="cred">Procedure via
+      <span class="mono">u/zeknife</span> on r/MiniFreak.</p>
+    </details>
 
     <div class="row wrap" style="margin-top:14px">
       <label for="rootInput">Factory folder</label>
@@ -707,10 +748,10 @@ function updatePaths(){
   $("steps").innerHTML = [
     `<b>Convert</b> your WAVs above and get them out of the browser — the `
       + ".zip, or a folder you choose.",
-    `<b>Unpack them.</b> ${how.unzip} You should end up with loose `
-      + `<code>.raw12b</code> / <code>.raw</code> files, or `
-      + `<code>Samples${s}</code> and <code>WT${s}</code> folders if you `
-      + "converted both types at once.",
+    `<b>Unpack them.</b> ${how.unzip} You'll have a `
+      + `<code>Samples${s}</code> folder of <code>.raw12b</code> files and a `
+      + `<code>WT${s}</code> folder of <code>.raw</code> files, already `
+      + "flattened and ready to copy.",
     `<b>Open the Factory folder.</b> ${how.open}<br>`
       + `<span class="sub">Path: <code>${rootPath()}</code>`
       + (CUSTOM_ROOT ? " (your custom location)" : ` — ${how.hidden}`)
@@ -721,84 +762,74 @@ function updatePaths(){
       + "tidy convention.<br>"
       + "<span class=\"sub\">One rule: that folder must contain <b>files "
       + "only</b>. Sub-folders nested inside it are not read.</span>",
-    `<b>Copy your files in:</b> every <code>.raw12b</code> into your folder `
-      + `under <code>Samples${s}</code>, every <code>.raw</code> into your `
-      + `folder under <code>WT${s}</code>.`,
+    "<b>Copy the files in.</b> Everything from the converter's "
+      + `<code>Samples${s}</code> folder goes into the folder you just made `
+      + `under <code>Samples${s}</code>, and likewise for `
+      + `<code>WT${s}</code>. Copy the <i>files</i>, not the folder itself.`,
     "<b>That's it — they show up on their own.</b> MiniFreak&nbsp;V picks up "
       + "new content as soon as it lands, so there's no restart or rescan to "
       + "trigger. Samples are ready for the Sampler and Grain engines; "
       + "wavetables appear in the Wavetable engine.",
   ].map(li => `<li>${li}</li>`).join("");
+
+  /* Where the content lands decides whether it reaches the synth — a choice,
+     not a hazard: content can be removed from the hardware again later. */
+  $("syncNote").innerHTML =
+    `<b>Plugin only, or on the synth too?</b> Content inside `
+    + `<code>Factory</code>'s own sample folders is included when `
+    + "MiniFreak&nbsp;V syncs to the hardware, so it ends up on the synth "
+    + "itself. Content in a folder of your own — the one you made in step 4 — "
+    + "is available in the plugin but is left out of the sync. Neither choice "
+    + "is permanent — content can be cleared off the synth again, as below.";
 }
 /* The destination hint spells out exactly what you get out of the browser;
    it reacts to what's actually queued. */
 function updateDestHint(){
-  const o = osInfo();
-  const c = counts();
-  const kinds = (c.samples > 0) + (c.wavetables > 0);   // 0, 1 or 2
-  const only = c.wavetables > 0 && !c.samples ? "wt" : "samples";
-  const onlyLabel = only === "wt" ? "wavetables" : "samples";
-  const split = `<code>Samples${sep()}</code> and <code>WT${sep()}</code>`;
+  const s0 = sep();
+  const split = `<code>Samples${s0}</code> and <code>WT${s0}</code>`;
+  /* Output is always the same shape: two flat folders, ready to copy. */
+  const shape = `Whatever you convert comes out as ${split} folders, each `
+    + "holding a <b>flat</b> list of files — input sub-folders are collapsed "
+    + "away, since MiniFreak&nbsp;V won't read nested folders. Two files that "
+    + "end up with the same name get <code>_2</code>, <code>_3</code> and so "
+    + "on, so nothing is lost.";
 
-  const mode = destMode();
-
-  if(mode === "folder"){
-    if(!hasFSA){
-      $("destHint").innerHTML = "<span class='bad-txt'>This browser "
-        + "can't write to folders (needs Chrome or Edge) — use the .zip "
-        + "option instead.</span>";
-      return;
-    }
-    let s = "You pick one folder and everything is written inside it, with "
-      + "no .zip to unpack. <b>Pick a working folder you can reach — your "
-      + "Desktop, say.</b> The picker can't open Arturia's own folders "
-      + "(see below), so this is a staging step: you still copy the files "
-      + "across at the end.<br><br>";
-    if(kinds === 2){
-      s += `Your batch has both types, so you'll get ${split} sub-folders `
-        + "inside it — copy the contents of each into its matching folder.";
-    } else if(kinds === 1){
-      s += `Your batch is ${onlyLabel} only, so the files land loose in the `
-        + `folder you pick, ready to copy into <code>${fullPath(only)}</code>.`;
-    } else {
-      s += `A mixed batch is split into ${split} sub-folders; a single-type `
-        + "batch lands loose.";
-    }
-    s += " Existing files of the same name are overwritten without asking.";
-    $("destHint").innerHTML = s;
+  if(destMode() === "folder"){
+    $("destHint").innerHTML = hasFSA
+      ? "You pick one folder and everything is written inside it, with no "
+        + ".zip to unpack. <b>Pick a working folder you can reach — your "
+        + "Desktop, say.</b> The picker can't open Arturia's own folders "
+        + "(see below), so this is a staging step: you still copy the files "
+        + `across at the end.<br><br>${shape}`
+      : "<span class='bad-txt'>This browser can't write to folders (needs "
+        + "Chrome or Edge) — use the .zip option instead.</span>";
     return;
   }
 
-  let s = "A .zip lands in your usual downloads folder. Unzip it, then copy "
-    + "the files into the folders below — that last step is manual, and "
-    + "step&nbsp;4 walks through it.<br><br>";
-  if(kinds === 2){
-    s += `Because your batch has both types, the .zip contains ${split} `
-      + "sub-folders — copy the contents of each into its matching folder.";
-  } else if(kinds === 1){
-    s += `Your batch is ${onlyLabel} only, so the .zip's contents all go into `
-      + `<code>${fullPath(only)}</code>.`;
-  } else {
-    s += `A mixed batch is split into ${split} sub-folders inside the .zip; `
-      + "a single-type batch isn't.";
-  }
-  s += " Any folder structure from your input is preserved either way — "
-    + "which you'll want to <b>flatten</b> when you copy the files in, since "
-    + "MiniFreak&nbsp;V won't look inside nested sub-folders.";
-  $("destHint").innerHTML = s;
+  $("destHint").innerHTML =
+    "A .zip lands in your usual downloads folder. Unzip it, then copy the "
+    + "files into the folders below — that last step is manual, and "
+    + `step&nbsp;4 walks through it.<br><br>${shape}`;
 }
 
-/* output path: swap extension, and split by type when the batch is mixed */
-function outPath(it, ext, mixed){
-  let p = it.rel.replace(/\.wav$/i, "") + ext;
-  if(mixed) p = (it.kind === "wavetable" ? "WT/" : "Samples/") + p;
-  return p;
+/* Output path: always Samples/<name> or WT/<name>, flat.
+   MiniFreak V reads files only — it ignores anything nested inside the
+   folder you drop your content in — so input sub-folders are deliberately
+   flattened away rather than preserved. `taken` carries the names already
+   used in this run so that two files that collapse to the same name (say
+   drums/kick.wav and bass/kick.wav) don't silently overwrite each other. */
+function outPath(it, ext, taken){
+  const dir = it.kind === "wavetable" ? "WT/" : "Samples/";
+  const base = it.rel.split("/").pop().replace(/\.wav$/i, "");
+  let name = base, n = 2;
+  while(taken.has(dir + name + ext)) name = `${base}_${n++}`;
+  taken.add(dir + name + ext);
+  return dir + name + ext;
 }
 
 async function convertAll(){
   const maxFrames = Number($("maxFrames").value) || 0;
-  const c = counts();
-  const mixed = c.samples > 0 && c.wavetables > 0;
+  const taken = new Set();          // output names used so far, for de-duping
   const zip = destMode() === "zip";
   let root = null;
   if(!zip){
@@ -818,7 +849,7 @@ async function convertAll(){
       const res = it.kind === "wavetable"
         ? convertWavetable(buf, maxFrames) : convertSample(buf);
       it.info = res.info;
-      const path = outPath(it, res.ext, mixed);
+      const path = outPath(it, res.ext, taken);
       if(zip) outputs.push({name: path, data: res.bytes});
       else await writeFSA(root, path, res.bytes);
       it.status = "converted";
