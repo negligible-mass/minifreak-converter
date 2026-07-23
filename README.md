@@ -6,11 +6,6 @@ Inspired by https://github.com/mtizim/minifreak_sample_conv/
 using this tool, it is not an official Arturia tool and can result in harm 
 to your device. 
 
-***At this time it is not possible to remove any custom samples 
-from the hardware Minifreak. If you choose to synchronize any samples or 
-wavetables to the hardware synth, be advised that this is irreversible and may 
-damage your device!***
-
 A **single self-contained `index.html`** that converts audio into Arturia
 **MiniFreak V** user content, entirely in the browser. No install, no
 Python, no server, no dependencies — and nothing is uploaded anywhere.
@@ -29,7 +24,7 @@ Open `index.html` in a browser (double-click it, or host it anywhere).
 1. **Input** — pick a folder or files, or drag WAVs onto the drop zone.
    Auto-detect treats a WAV carrying a Serum `clm ` chunk as a wavetable
    and everything else as a one-shot sample; you can also force a type.
-   Folders are read recursively and their structure is preserved.
+   Folders are read recursively.
 2. **Output** — either:
    * **Download as .zip** — works in every browser.
    * **Save to a folder I choose** (Chrome / Edge) — writes into a working
@@ -39,17 +34,18 @@ Open `index.html` in a browser (double-click it, or host it anywhere).
 
 ### What you get out
 
-The batch determines the shape of the output:
+Always the same shape, whatever you put in:
 
-| Batch | What you get |
-|---|---|
-| **All samples** | `.raw12b` files, loose |
-| **All wavetables** | `.raw` files, loose |
-| **Mixed** | a `Samples/` folder and a `WT/` folder, since each type has its own destination |
+```
+Samples/    .raw12b files, flat
+WT/         .raw files, flat
+```
 
-Any folder structure from your input is preserved inside that, and an existing
-file of the same name is overwritten without a prompt. MiniFreak V itself reads
-files only, not nested sub-folders.
+Each type has its own destination in MiniFreak V, so the two are separated for
+you. Input sub-folders are **flattened away** — MiniFreak V reads files only
+and ignores anything nested — so `drums/kick.wav` and `bass/kick.wav` both land
+in `Samples/`. When flattening collides like that, the later file gets `_2`,
+`_3` and so on rather than overwriting the earlier one.
 
 ### A non-standard install
 
@@ -89,12 +85,16 @@ This is the machine-wide `/Library` at the root of your startup disk, **not**
 your home `~/Library` — Finder hides both by default. Press <kbd>⇧⌘G</kbd> in
 Finder and paste a path to jump straight there.
 
-### Why a sub-folder, and not `Factory` itself
+### Plugin only, or on the synth too?
 
-Keeping your content in a folder of its own, rather than loose among
-`Factory`'s files, keeps it out of the factory list — so it won't be swept
-along in a sample sync to the hardware synth unless you deliberately put it
-there.
+Where you put the content decides whether it reaches the hardware:
+
+* **Inside `Factory`'s own sample folders** — included when MiniFreak V syncs
+  to the synth, so it ends up on the instrument itself.
+* **In a folder of your own** (the `User` folder in these steps) — available
+  in the plugin, but left out of the sync.
+
+Neither choice is permanent — see *Removing samples from the hardware* below.
 
 ## Installing the files
 
@@ -104,6 +104,7 @@ path. Both are listed here too.
 ### Windows
 
 1. Convert, and unpack the result — right-click the .zip → **Extract All…**
+   You'll have a `Samples\` folder and a `WT\` folder, already flattened.
 2. Open **File Explorer**, click the address bar (or press
    <kbd>Ctrl</kbd>+<kbd>L</kbd>), and paste:
    ```
@@ -113,15 +114,16 @@ path. Both are listed here too.
    **Name it whatever you like** — MiniFreak V doesn't care; `User` is just a
    tidy convention. The one rule is that it must contain **files only**:
    sub-folders nested inside it are not read.
-4. Copy every `.raw12b` into your folder under `Samples\`, and every `.raw`
-   into your folder under `WT\`.
+4. Copy the *contents* of the converter's `Samples\` folder into the folder
+   you just made under `Samples\`, and likewise for `WT\`.
 5. **That's it.** MiniFreak V picks up new content as soon as it lands; no
    restart or rescan is needed.
 
 ### macOS
 
 1. Convert, and unpack the result — double-click the .zip. Safari may have
-   unzipped it already, so look for a folder rather than an archive.
+   unzipped it already, so look for a folder rather than an archive. You'll
+   have a `Samples/` folder and a `WT/` folder, already flattened.
 2. In **Finder** press <kbd>⇧⌘G</kbd> and paste:
    ```
    /Library/Arturia/Samples/MiniFreak V/Factory
@@ -130,13 +132,32 @@ path. Both are listed here too.
    **Name it whatever you like** — `User` is just a tidy convention. The one
    rule is that it must contain **files only**: sub-folders nested inside it
    are not read.
-4. Copy every `.raw12b` into your folder under `Samples/`, and every `.raw`
-   into your folder under `WT/`.
+4. Copy the *contents* of the converter's `Samples/` folder into the folder
+   you just made under `Samples/`, and likewise for `WT/`.
 5. **That's it.** MiniFreak V picks up new content as soon as it lands; no
    restart or rescan is needed.
 
 Your content then appears under the folder name you chose — samples for the
 Sampler and Grain engines, wavetables for the Wavetable engine.
+
+## Removing samples from the hardware
+
+If you've synced content to the synth and want it gone, the instrument's debug
+menu can reset its storage:
+
+1. Hold the **oscillator select** and **filter type** buttons together for a
+   few seconds, then release to open the **debug menu**.
+2. Choose **Format Filesystem**.
+3. Sync with MiniFreak V again to reload the factory tables and samples.
+
+> **This wipes _all_ wavetables and samples on the unit**, factory content
+> included — it is not a way to remove one sample. Step 3 puts the factory
+> content back.
+
+Delete your custom files from the computer *before* syncing, or they'll simply
+be copied onto the unit again.
+
+*Procedure via u/zeknife on r/MiniFreak.*
 
 ## Implementation notes
 
@@ -144,7 +165,9 @@ Everything is inline in `index.html` — no external scripts or CDNs:
 
 * RIFF/WAV parser (float32, and 8/16/24/32-bit PCM), channel downmix.
 * Iterative radix-2 FFT for band-limited single-cycle resampling.
-  Non-power-of-two frame sizes fall back to linear interpolation.
+  Non-power-of-two frame sizes fall back to linear interpolation (the
+  Python version uses numpy's arbitrary-size FFT there, so results can
+  differ for such files — Serum tables are always powers of two).
 * A minimal stored-mode ZIP writer with CRC-32.
 * File System Access API for direct folder writing, feature-detected with
   an automatic fall back to ZIP (the folder option is disabled outright when
