@@ -144,9 +144,7 @@ Everything is inline in `index.html` — no external scripts or CDNs:
 
 * RIFF/WAV parser (float32, and 8/16/24/32-bit PCM), channel downmix.
 * Iterative radix-2 FFT for band-limited single-cycle resampling.
-  Non-power-of-two frame sizes fall back to linear interpolation (the
-  Python version uses numpy's arbitrary-size FFT there, so results can
-  differ for such files — Serum tables are always powers of two).
+  Non-power-of-two frame sizes fall back to linear interpolation.
 * A minimal stored-mode ZIP writer with CRC-32.
 * File System Access API for direct folder writing, feature-detected with
   an automatic fall back to ZIP (the folder option is disabled outright when
